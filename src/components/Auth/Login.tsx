@@ -14,10 +14,10 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const demoUsers = [
-    { email: 'admin@educacao.gov.br', role: 'Administrador', password: 'password' },
-    { email: 'carlos@educacao.gov.br', role: 'Despachante', password: 'password' },
-    { email: 'maria@escola1.edu.br', role: 'Solicitante - Escola João da Silva', password: 'password' },
-    { email: 'joao@escola2.edu.br', role: 'Solicitante - Escola Maria das Dores', password: 'password' },
+    { email: 'admin@educacao.gov.br', role: 'Administrador', password: 'admin123' },
+    { email: 'carlos@educacao.gov.br', role: 'Despachante', password: 'carlos123' },
+    { email: 'maria@escola1.edu.br', role: 'Solicitante - Escola João da Silva', password: 'maria123' },
+    { email: 'joao@escola2.edu.br', role: 'Solicitante - Escola Maria das Dores', password: 'joao123' },
   ];
 
   if (loading) {
@@ -170,13 +170,13 @@ const Login = () => {
 
             <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-xs text-yellow-800">
-                <strong>Senha para todos os usuários:</strong> password
+                <strong>Senhas dos usuários:</strong> admin123, carlos123, maria123, joao123
               </p>
             </div>
 
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-xs text-green-800">
-                <strong>Sistema baseado em sessão:</strong> Sua sessão será mantida automaticamente durante a navegação e expira em 24 horas.
+                <strong>Sistema com Supabase Auth:</strong> Sua sessão será mantida automaticamente durante a navegação.
               </p>
             </div>
           </div>

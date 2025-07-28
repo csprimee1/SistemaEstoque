@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: 'solicitante' | 'despachante' | 'administrador';
@@ -8,7 +8,7 @@ export interface User {
 }
 
 export interface Material {
-  id: number;
+  id: string;
   name: string;
   category: string;
   unit: string;
@@ -20,7 +20,7 @@ export interface Material {
 }
 
 export interface Supplier {
-  id: number;
+  id: string;
   name: string;
   email?: string;
   phone?: string;
@@ -29,15 +29,15 @@ export interface Supplier {
 }
 
 export interface StockEntry {
-  id: number;
-  materialId: number;
-  supplierId: number;
+  id: string;
+  materialId: string;
+  supplierId: string;
   quantity: number;
   unitPrice?: number;
   batch?: string;
   expiryDate?: string;
   notes?: string;
-  createdBy: number;
+  createdBy: string;
   createdAt: string;
   createdUser: string;
   material?: Material;
@@ -46,14 +46,14 @@ export interface StockEntry {
 }
 
 export interface Request {
-  id: number;
-  requesterId: number;
+  id: string;
+  requesterId: string;
   status: 'pendente' | 'aprovado' | 'rejeitado' | 'despachado' | 'cancelado';
   priority: 'baixa' | 'media' | 'alta';
   notes?: string;
-  approvedBy?: number;
+  approvedBy?: string;
   approvedAt?: string;
-  dispatchedBy?: number;
+  dispatchedBy?: string;
   dispatchedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -61,13 +61,13 @@ export interface Request {
   approver?: User;
   dispatcher?: User;
   items?: RequestItem[];
-  itemsCount: number,
+  itemsCount?: number;
 }
 
 export interface RequestItem {
-  id: number;
-  requestId: number;
-  materialId: number;
+  id: string;
+  requestId: string;
+  materialId: string;
   requestedQuantity: number;
   approvedQuantity?: number;
   dispatchedQuantity?: number;
@@ -76,14 +76,14 @@ export interface RequestItem {
 }
 
 export interface StockMovement {
-  id: number;
-  materialId: number;
+  id: string;
+  materialId: string;
   type: 'entrada' | 'saida';
   quantity: number;
   reason: string;
-  referenceId?: number;
+  referenceId?: string;
   referenceType?: 'request' | 'entry' | 'adjustment';
-  createdBy: number;
+  createdBy: string;
   createdAt: string;
   material?: Material;
   user?: User;
@@ -93,5 +93,10 @@ export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  signUp?: (email: string, password: string, userData: {
+    name: string;
+    role: 'solicitante' | 'despachante' | 'administrador';
+    school?: string;
+  }) => Promise<boolean>;
   loading: boolean;
 }
