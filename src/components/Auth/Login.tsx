@@ -54,7 +54,10 @@ const Login = () => {
   };
 
   const handleDemoLogin = (email: string) => {
-    setFormData({ email, password: 'password' });
+    const demoUser = demoUsers.find(u => u.email === email);
+    if (demoUser) {
+      setFormData({ email, password: demoUser.password });
+    }
   };
 
   return (

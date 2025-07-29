@@ -12,33 +12,33 @@ export interface Database {
       users: {
         Row: {
           id: string
-          auth_user_id: string | null
           name: string
           email: string
           role: 'solicitante' | 'despachante' | 'administrador'
           school: string | null
+          password_hash: string | null
           is_active: boolean | null
           created_at: string | null
           updated_at: string | null
         }
         Insert: {
           id?: string
-          auth_user_id?: string | null
           name: string
           email: string
           role?: 'solicitante' | 'despachante' | 'administrador'
           school?: string | null
+          password_hash?: string | null
           is_active?: boolean | null
           created_at?: string | null
           updated_at?: string | null
         }
         Update: {
           id?: string
-          auth_user_id?: string | null
           name?: string
           email?: string
           role?: 'solicitante' | 'despachante' | 'administrador'
           school?: string | null
+          password_hash?: string | null
           is_active?: boolean | null
           created_at?: string | null
           updated_at?: string | null
@@ -262,6 +262,8 @@ export interface Database {
           expires_at: string
           created_at: string | null
           updated_at: string | null
+          user_agent: string | null
+          ip_address: string | null
         }
         Insert: {
           id?: string
@@ -270,6 +272,8 @@ export interface Database {
           expires_at: string
           created_at?: string | null
           updated_at?: string | null
+          user_agent?: string | null
+          ip_address?: string | null
         }
         Update: {
           id?: string
@@ -278,6 +282,8 @@ export interface Database {
           expires_at?: string
           created_at?: string | null
           updated_at?: string | null
+          user_agent?: string | null
+          ip_address?: string | null
         }
       }
     }
@@ -314,6 +320,34 @@ export interface Database {
       clean_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      validate_session: {
+        Args: {
+          token: string
+        }
+        Returns: {
+          user_id: string
+          user_name: string
+          user_email: string
+          user_role: 'solicitante' | 'despachante' | 'administrador'
+          user_school: string | null
+        }[]
+      }
+      create_session: {
+        Args: {
+          p_user_id: string
+          p_session_token: string
+          p_expires_at: string
+          p_user_agent?: string | null
+          p_ip_address?: string | null
+        }
+        Returns: string
+      }
+      remove_session: {
+        Args: {
+          token: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

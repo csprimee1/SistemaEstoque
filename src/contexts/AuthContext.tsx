@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import { supabase, getCurrentUserProfile, createUserProfile } from '../lib/supabase';
+import { validateSession, loginWithCredentials, logout as logoutUser } from '../lib/supabase';
 import { User, AuthContextType } from '../types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,79 +27,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check initial session
     checkSession();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          await loadUserProfile();
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const checkSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await loadUserProfile();
-      }
+      const userData = await validateSession();
+      setUser(userData);
     } catch (error) {
-      console.error('Error checking session:', error);
+      console.error('Erro ao verificar sessão:', error);
       setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUserProfile = async () => {
-    try {
-      const profile = await getCurrentUserProfile();
-      if (profile) {
-        setUser({
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role,
-          school: profile.school || undefined,
-          createdAt: profile.created_at || new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-      setUser(null);
-    }
-  };
-
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const result = await loginWithCredentials(email, password);
       
-      if (error) throw error;
-      
-      if (data.user) {
-        await loadUserProfile();
+      if (result.success && result.user) {
+        setUser(result.user);
+        return true;
+      } else {
+        console.error('Erro no login:', result.error);
+        return false;
       }
-      
-      return true;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Erro no login:', error);
       return false;
     }
   };
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      await logoutUser();
     } finally {
       setUser(null);
     }
@@ -110,25 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     role: 'solicitante' | 'despachante' | 'administrador';
     school?: string;
   }) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      
-      if (data.user) {
-        await createUserProfile(data.user, userData);
-        await loadUserProfile();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return false;
-    }
+    // Para demo, não implementamos signup real
+    // Em produção, você implementaria a criação de usuário aqui
+    console.log('SignUp não implementado para demo');
+    return false;
   };
+
   const value: AuthContextType = {
     user,
     login,

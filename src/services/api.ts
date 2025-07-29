@@ -1,4 +1,5 @@
 import { supabase, getCurrentUserProfile } from '../lib/supabase';
+import { validateSession } from '../lib/supabase';
 import { 
   User, 
   Material, 
@@ -13,7 +14,7 @@ import {
 //Dashboard
 export const dashboardApi = {
   getStats: async () => {
-    const currentUser = await getCurrentUserProfile();
+    const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
 
     // Get total materials count
@@ -329,7 +330,7 @@ export const stockEntriesApi = {
   },
 
   create: async (data: any) => {
-    const currentUser = await getCurrentUserProfile();
+    const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
 
     const { data: result, error } = await supabase
@@ -433,7 +434,7 @@ export const requestsApi = {
       notes?: string;
     }>;
   }): Promise<any> => {
-    const currentUser = await getCurrentUserProfile();
+    const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
 
     // Create the request
@@ -514,7 +515,7 @@ export const requestsApi = {
   },
 
   reject: async (id: string, reason: string): Promise<any> => {
-    const currentUser = await getCurrentUserProfile();
+    const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
