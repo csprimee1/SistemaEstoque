@@ -2,7 +2,7 @@
 
 Sistema completo para gerenciamento de estoque de materiais escolares, desenvolvido com React, TypeScript, Tailwind CSS e Supabase.
 
-## 🚀 Funcionalidades
+## 🚀 Funcionalidades s
 
 - **Autenticação e Autorização**: Sistema de login com diferentes níveis de acesso
 - **Gestão de Materiais**: Cadastro e controle de estoque de materiais
