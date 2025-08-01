@@ -6,7 +6,7 @@ import { materialsApi, requestsApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface RequestFormItem {
-  materialId: number;
+  materialId: string;
   requestedQuantity: number;
   notes?: string;
   material?: Material;
@@ -29,7 +29,7 @@ const RequestForm = () => {
   });
 
   const [items, setItems] = useState<RequestFormItem[]>([
-    { materialId: 0, requestedQuantity: 0, notes: '' }
+    { materialId: null, requestedQuantity: 0, notes: '' }
   ]);
 
   useEffect(() => {
@@ -85,16 +85,21 @@ const RequestForm = () => {
 
   const updateItem = (index: number, field: keyof RequestFormItem, value: any) => {
     const updatedItems = [...items];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-
+    
     if (field === 'materialId') {
+      updatedItems[index] = { 
+        ...updatedItems[index], 
+        [field]: value === '' ? null : value 
+      };
+      
       const material = materials.find(m => m.id === value);
       updatedItems[index].material = material;
+    } else {
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
     }
 
     setItems(updatedItems);
   };
-
   const validateForm = (): string | null => {
     if (items.length === 0) {
       return 'Adicione pelo menos um item à solicitação';
@@ -102,7 +107,7 @@ const RequestForm = () => {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (!item.materialId || item.materialId === 0) {
+      if (!item.materialId) {
         return `Selecione um material para o item ${i + 1}`;
       }
       if (!item.requestedQuantity || item.requestedQuantity <= 0) {
@@ -110,8 +115,7 @@ const RequestForm = () => {
       }
     }
 
-    // Verificar itens duplicados
-    const materialIds = items.map(item => item.materialId);
+    const materialIds = items.map(item => item.materialId).filter(Boolean) as string[];
     const uniqueIds = new Set(materialIds);
     if (materialIds.length !== uniqueIds.size) {
       return 'Não é possível adicionar o mesmo material mais de uma vez';
@@ -316,15 +320,14 @@ const RequestForm = () => {
                       Material
                     </label>
                     <select
-                      value={item.materialId}
-                      onChange={(e) => updateItem(index, 'materialId', parseInt(e.target.value))}
+                      value={item.materialId || ''}
+                      onChange={(e) => updateItem(index, 'materialId', e.target.value)}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
-                      <option value={0}>Selecione um material</option>
+                      <option value="">Selecione um material</option>
                       {materials
                         .filter(material => 
-                          // Filtrar materiais já selecionados em outros itens
                           !items.some((otherItem, otherIndex) => 
                             otherIndex !== index && otherItem.materialId === material.id
                           )

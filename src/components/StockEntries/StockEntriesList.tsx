@@ -16,8 +16,8 @@ const StockEntriesList = () => {
   const [showForm, setShowForm] = useState(false);
 
   const [formData, setFormData] = useState({
-    materialId: 0,
-    supplierId: 0,
+    materialId: "NULL",
+    supplierId: "NULL",
     quantity: 0,
     unitPrice: 0,
     batch: '',
@@ -46,21 +46,21 @@ const StockEntriesList = () => {
       const mappedEntries = entriesResponse.map((entry: any) => ({
         id: entry.id,
         quantity: entry.quantity,
-        unitPrice: entry.unit_price,
-        totalPrice: entry.total_price,
+        unitPrice: entry.unitPrice,
+        totalPrice: entry.totalPrice,
         batch: entry.batch || null,
         expiryDate: entry.expiry_date || null,
         notes: entry.notes || null,
-        createdAt: entry.created_at,
-        updatedAt: entry.updated_at,
-        createdUser: entry.created_by_name,
-        material: materialsResponse.find((m: Material) => m.id === entry.material_id),
-        supplier: suppliersResponse.find((s: Supplier) => s.id === entry.supplier_id),
-        materialId: entry.material_id,
-        supplierId: entry.supplier_id,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        createdUser: entry.createdUser,
+        material: materialsResponse.find((m: Material) => m.id === entry.materialId),
+        supplier: suppliersResponse.find((s: Supplier) => s.id === entry.supplierId),
+        materialId: entry.materialId,
+        supplierId: entry.supplierId,
         // Adicione outros campos conforme necessário
       }));
-      
+      console.log(mappedEntries);
       setStockEntries(mappedEntries);
       setMaterials(materialsResponse);
       setSuppliers(suppliersResponse);
@@ -271,7 +271,7 @@ const StockEntriesList = () => {
                   <select
                     required
                     value={formData.materialId}
-                    onChange={(e) => setFormData({ ...formData, materialId: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, materialId: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={0}>Selecione um material</option>
@@ -287,7 +287,7 @@ const StockEntriesList = () => {
                   <select
                     required
                     value={formData.supplierId}
-                    onChange={(e) => setFormData({ ...formData, supplierId: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={0}>Selecione um fornecedor</option>

@@ -16,12 +16,12 @@ export const dashboardApi = {
   getStats: async () => {
     const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
-
+    
     // Get total materials count
     const { count: totalMaterials } = await supabase
       .from('materials')
       .select('*', { count: 'exact', head: true });
-
+    
     // Get pending requests count
     let pendingRequestsQuery = supabase
       .from('requests')
@@ -36,9 +36,8 @@ export const dashboardApi = {
 
     // Get low stock items count
     const { count: lowStockItems } = await supabase
-      .from('materials')
-      .select('*', { count: 'exact', head: true })
-      .lte('current_stock', supabase.raw('min_stock'));
+      .from('low_stock_materials')
+      .select('*', { count: 'exact', head: true });
 
     // Get total users count (admin only)
     let totalUsers = 0;
@@ -332,7 +331,7 @@ export const stockEntriesApi = {
   create: async (data: any) => {
     const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
-
+    console.log(data);
     const { data: result, error } = await supabase
       .from('stock_entries')
       .insert({
@@ -372,27 +371,51 @@ export const stockEntriesApi = {
 // SOLICITAÇÕES
 export const requestsApi = {
   getAll: async (): Promise<any[]> => {
-    const { data, error } = await supabase
-      .from('request_summary')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from('requests')
+    .select(`
+      id,
+      status,
+      priority,
+      created_at,
+      requester:requester_id (id, name, school),
+      approver:approved_by (name),
+      dispatcher:dispatched_by (name),
+      items:request_items (
+        requested_quantity,
+        dispatched_quantity
+      )
+    `)
+    .order('created_at', { ascending: false });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    return (data || []).map((item: any) => ({
-      id: item.id,
-      status: item.status,
-      priority: item.priority,
-      created_at: item.created_at,
-      requester_name: item.requester_name,
-      school: item.school,
-      approver_name: item.approver_name,
-      dispatcher_name: item.dispatcher_name,
-      itemsCount: item.items_count,
-      totalRequested: item.total_requested,
-      totalDispatched: item.total_dispatched
-    }));
-  },
+  return (data || []).map((request) => {
+    // Calcular totais dos itens
+    const itemsCount = request.items?.length || 0;
+    const totalRequested = request.items?.reduce(
+      (sum: number, item: any) => sum + (item.requested_quantity || 0), 0
+    ) || 0;
+    const totalDispatched = request.items?.reduce(
+      (sum: number, item: any) => sum + (item.dispatched_quantity || 0), 0
+    ) || 0;
+
+    return {
+      id: request.id,
+      status: request.status,
+      priority: request.priority,
+      created_at: request.created_at,
+      requester_name: request.requester?.name,
+      requesterId: request.requester?.id,
+      school: request.requester?.school,
+      approver_name: request.approver?.name,
+      dispatcher_name: request.dispatcher?.name,
+      itemsCount,
+      totalRequested,
+      totalDispatched
+    };
+  });
+},
 
   getById: async (id: string): Promise<any> => {
     const { data: request, error: requestError } = await supabase
@@ -518,15 +541,25 @@ export const requestsApi = {
     const currentUser = await validateSession();
     if (!currentUser) throw new Error('User not authenticated');
 
+    const { data: req, error: fetchError } = await supabase
+      .from("requests")
+      .select("notes")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const updatedNotes = (req.notes ?? "") + `\nMotivo da rejeição: ${reason}`;
+
     const { data, error } = await supabase
-      .from('requests')
+      .from("requests")
       .update({
-        status: 'rejeitado',
+        status: "rejeitado",
         approved_by: currentUser.id,
         approved_at: new Date().toISOString(),
-        notes: supabase.raw(`COALESCE(notes, '') || '\nMotivo da rejeição: ${reason}'`)
+        notes: updatedNotes
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -547,19 +580,12 @@ export const requestsApi = {
 
     if (requestError) throw requestError;
 
-    // Update dispatched quantities (set to approved quantities)
-    const { error: itemsError } = await supabase
-      .from('request_items')
-      .update({
-        dispatched_quantity: supabase.raw('approved_quantity')
-      })
-      .eq('request_id', id);
-
-    if (itemsError) throw itemsError;
+    const { error } = await supabase.rpc('dispatch_request_items', { req_id: id });
+    if (error) throw error;
 
     return { success: true };
-  }
-};
+      }
+    };
 
 // Clean up expired sessions periodically
 export const cleanupSessions = async () => {

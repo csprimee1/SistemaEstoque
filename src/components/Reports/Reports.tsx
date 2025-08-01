@@ -114,24 +114,24 @@ const Reports = () => {
 
       const mappedStockEntries = stockEntriesResponse.map((entry: any) => ({
         id: entry.id,
-        materialId: entry.material_id,
-        supplierId: entry.supplier_id,
+        materialId: entry.materialId,
+        supplierId: entry.supplierId,
         quantity: entry.quantity,
-        unitPrice: entry.unit_price,
+        unitPrice: entry.unitPrice,
         batch: entry.batch,
-        expiryDate: entry.expiry_date,
+        expiryDate: entry.expiryDate,
         notes: entry.notes,
-        createdAt: entry.created_at,
-        createdBy: entry.created_by,
+        createdAt: entry.createdAt,
+        createdBy: entry.createdBy,
 
         // Relacionamentos:
-        user: { name: entry.created_by_name || 'N/A' },
+        user: { name: entry.createdUser || 'N/A' },
         material: {
-          name: entry.material_name || 'N/A',
-          unit: entry.material_unit || ''
+          name: entry.material.name || 'N/A',
+          unit: entry.material.unit || ''
         },
         supplier: {
-          name: entry.supplier_name || 'N/A'
+          name: entry.supplier.name || 'N/A'
         }
       }));
 
@@ -145,12 +145,6 @@ const Reports = () => {
         description: m.description,
         updatedAt: m.updatedAt
       }));
-
-          console.log('requests:', requestsResponse);
-          console.log('stockEntries:', stockEntriesResponse);
-          console.log('materials:', materialsResponse);
-          console.log('suppliers:', suppliersResponse);
-          console.log('users:', usersResponse);
 
       setData({
         requests: mappedRequests,

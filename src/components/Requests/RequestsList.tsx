@@ -34,7 +34,7 @@ const RequestsList = () => {
         notes: item.notes,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
-        requesterId: item.requester_id,
+        requesterId: item.requesterId,
         itemsCount: item.itemsCount,
         requester: {
           name: item.requester_name,
@@ -42,7 +42,12 @@ const RequestsList = () => {
         },
         items: [] // Será carregado nos detalhes
       }));
+      const filtered = user?.role === 'solicitante'
+        ? mappedRequests.filter((r: any) => r.requesterId === user.id)
+        : mappedRequests;
       setRequests(mappedRequests);
+      setRequests(filtered);
+      
     } catch (error) {
       console.error('Erro ao carregar solicitações:', error);
     } finally {

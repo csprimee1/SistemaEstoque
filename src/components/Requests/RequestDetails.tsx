@@ -36,7 +36,7 @@ const RequestDetails = () => {
 
   const fetchRequest = async () => {
     try {
-      const response = await requestsApi.getById(parseInt(id!));
+      const response = await requestsApi.getById(id!);
       // Mapeie os dados da API
       const mappedRequest = {
         id: response.id,
@@ -47,24 +47,24 @@ const RequestDetails = () => {
         updatedAt: response.updatedAt,
         requesterId: response.requesterId,
         requester: {
-          name: response.requester_name,
+          name: response.requester.name,
           school: response.school
         },
         approver: response.approver ? { 
-          name: response.approvedBy 
+          name: response.approver.name 
         } : undefined,
         dispatcher: response.dispatcher ? { 
-          name: response.dispatchedBy 
+          name: response.dispatcher.name 
         } : undefined,
-        approvedAt: response.approvedAt,
-        dispatchedAt: response.dispatchedAt,
+        approvedAt: response.approved_at,
+        dispatchedAt: response.dispatched_at,
         items: response.items?.map((item: any) => ({
           id: item.id,
           materialId: item.material_id,
           material: {
-            id: item.material_id,
-            name: item.material_name,
-            unit: item.unit,
+            id: item.material.id,
+            name: item.material.name,
+            unit: item.material.unit,
             category: item.category,
             description: item.description
           },
@@ -74,6 +74,7 @@ const RequestDetails = () => {
           notes: item.notes
         }))
       };
+      console.log(response);
       setRequest(mappedRequest);
     } catch (error) {
       console.error('Erro ao carregar solicitação:', error);
@@ -151,7 +152,7 @@ const RequestDetails = () => {
     try {
       await requestsApi.approve(
         request.id, 
-        user?.id || 0, 
+        user?.id || "null", 
         request.items?.map(item => ({
           item_id: item.id,
           quantity: item.requestedQuantity
@@ -190,7 +191,7 @@ const RequestDetails = () => {
     try {
       await requestsApi.dispatch(
         request.id, 
-        user?.id || 0
+        user?.id || "null"
       );
       fetchRequest();
     } catch (error) {
@@ -201,6 +202,7 @@ const RequestDetails = () => {
   };
 
   if (loading) {
+    console.log(request)
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
@@ -228,7 +230,6 @@ const RequestDetails = () => {
       </div>
     );
   }
-console.log('Data recebida:', request.createdAt);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

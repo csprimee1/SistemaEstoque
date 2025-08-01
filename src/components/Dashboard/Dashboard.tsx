@@ -225,7 +225,7 @@ const Dashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
             <div className="space-y-3">
               <button
-                onClick={() => window.location.href = '/stock-entries/new'}
+                onClick={() => window.location.href = '/stock-entries'}
                 className="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
               >
                 <div className="flex items-center">
