@@ -44,12 +44,6 @@ npm install
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` com suas credenciais do Supabase:
-```env
-VITE_SUPABASE_URL=https://kauirggfvadvvgtkhwfn.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthdWlyZ2dmdmFkdnZndGtod2ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NDU0NzIsImV4cCI6MjA2ODQyMTQ3Mn0.IMSuBjpZQjUWEooe8pVUpjhxFalSn8KqcH1funknLO0
-```
-
 4. **Configure o banco de dados**
 
 Execute as migrações no Supabase:
@@ -81,17 +75,6 @@ npm run dev
 
 4. **Deploy**
    - O deploy será automático após o push para a branch principal
-
-## 👥 Usuários Demo
-
-Para testar o sistema, use os seguintes usuários:
-
-| Email | Senha | Perfil |
-|-------|-------|--------|
-| admin@educacao.gov.br | admin123 | Administrador |
-| carlos@educacao.gov.br | carlos123 | Despachante |
-| maria@escola1.edu.br | maria123 | Solicitante |
-| joao@escola2.edu.br | joao123 | Solicitante |
 
 ## 📊 Estrutura do Banco de Dados
 
