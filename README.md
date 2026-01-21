@@ -157,3 +157,4 @@ Para suporte técnico, entre em contato com a equipe de desenvolvimento.
 ## 📄 Licença
 
 Este projeto é propriedade de Narciso Rodrigues.
+Att
