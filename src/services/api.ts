@@ -412,7 +412,8 @@ export const requestsApi = {
       dispatcher_name: request.dispatcher?.name,
       itemsCount,
       totalRequested,
-      totalDispatched
+      totalDispatched,
+      items: request.items || []
     };
   });
 },

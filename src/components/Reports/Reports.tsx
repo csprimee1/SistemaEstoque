@@ -18,7 +18,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import RequestsList from '../Requests/RequestsList';
 
 interface ReportFilters {
   startDate: string;
@@ -91,26 +90,58 @@ const Reports = () => {
         usersApi.getAll()
       ]);
 
-      // 🛠️ Ajustar os dados para camelCase e estrutura esperada
-      const mappedRequests = requestsResponse.map((r: any) => ({
-        id: r.id,
-        status: r.status,
-        priority: r.priority,
-        notes: r.notes,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-        itemsCount: r.items_count,
-        totalRequested: Number(r.total_requested),
-        requesterId: null, // se necessário
-        dispatchedBy: null, // se necessário
-        approver: { name: r.approver_name || 'N/A' },
-        dispatcher: { name: r.dispatcher_name || 'N/A' },
-        requester: {
-          name: r.requester_name || 'N/A',
-          school: r.school || ''
-        },
-        items: [] // pode preencher depois se quiser
-      }));
+      console.log('Requests response:', requestsResponse);
+      console.log('Primeiro request items:', requestsResponse[0]?.items);
+
+      // Mapear requests com items detalhados - CORRIGIDO
+      const mappedRequests = requestsResponse.map((r: any) => {
+        // Processar os items para garantir que o material está sendo acessado corretamente
+        const processedItems = r.items ? r.items.map((item: any) => ({
+          id: item.id,
+          requested_quantity: item.requested_quantity,
+          dispatched_quantity: item.dispatched_quantity,
+          approved_quantity: item.approved_quantity,
+          material: item.material ? {
+            id: item.material.id,
+            name: item.material.name,
+            unit: item.material.unit,
+            category: item.material.category
+          } : {
+            name: 'Material não encontrado',
+            unit: ''
+          }
+        })) : [];
+
+        return {
+          id: r.id,
+          status: r.status,
+          priority: r.priority,
+          notes: r.notes,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          itemsCount: processedItems.length,
+          totalRequested: r.totalRequested || r.total_requested || 0,
+          requesterId: r.requesterId || r.requester_id || null,
+          dispatchedBy: r.dispatchedBy || r.dispatched_by || null,
+          approver: { 
+            id: r.approver_id,
+            name: r.approver_name || r.approver?.name || 'N/A' 
+          },
+          dispatcher: { 
+            id: r.dispatcher_id,
+            name: r.dispatcher_name || r.dispatcher?.name || 'N/A' 
+          },
+          requester: {
+            id: r.requester_id || r.requesterId,
+            name: r.requester_name || r.requester?.name || 'N/A',
+            school: r.school || r.requester?.school || ''
+          },
+          items: processedItems // Itens processados com material correto
+        };
+      });
+      console.log('Requests mapeados:', mappedRequests);
+      console.log('Primeiro request mapeado:', mappedRequests[0]);
+      console.log('Items do primeiro request mapeado:', mappedRequests[0]?.items);
 
       const mappedStockEntries = stockEntriesResponse.map((entry: any) => ({
         id: entry.id,
@@ -123,15 +154,13 @@ const Reports = () => {
         notes: entry.notes,
         createdAt: entry.createdAt,
         createdBy: entry.createdBy,
-
-        // Relacionamentos:
         user: { name: entry.createdUser || 'N/A' },
         material: {
-          name: entry.material.name || 'N/A',
-          unit: entry.material.unit || ''
+          name: entry.material?.name || 'N/A',
+          unit: entry.material?.unit || ''
         },
         supplier: {
-          name: entry.supplier.name || 'N/A'
+          name: entry.supplier?.name || 'N/A'
         }
       }));
 
@@ -140,8 +169,8 @@ const Reports = () => {
         name: m.name,
         category: m.category,
         unit: m.unit,
-        currentStock: m.currentStock,
-        minStock: m.minStock,
+        currentStock: m.currentStock || 0,
+        minStock: m.minStock || 0,
         description: m.description,
         updatedAt: m.updatedAt
       }));
@@ -156,7 +185,7 @@ const Reports = () => {
       setMaterials(materialsResponse);
       setUsers(usersResponse);
 
-      // Extract unique schools
+      // Extrair escolas únicas
       const uniqueSchools = [...new Set(usersResponse
         .filter(u => u.school)
         .map(u => u.school!)
@@ -169,12 +198,13 @@ const Reports = () => {
       setLoading(false);
     }
   };
+
   const applyFilters = () => {
     let filteredRequests = [...data.requests];
     let filteredStockEntries = [...data.stockEntries];
     let filteredMaterials = [...data.materials];
 
-    // Date filters
+    // Filtros de data
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
       filteredRequests = filteredRequests.filter(r => new Date(r.createdAt) >= startDate);
@@ -183,41 +213,41 @@ const Reports = () => {
 
     if (filters.endDate) {
       const endDate = new Date(filters.endDate);
-      endDate.setHours(23, 59, 59, 999); // End of day
+      endDate.setHours(23, 59, 59, 999);
       filteredRequests = filteredRequests.filter(r => new Date(r.createdAt) <= endDate);
       filteredStockEntries = filteredStockEntries.filter(e => new Date(e.createdAt) <= endDate);
     }
 
-    // Supplier filter
+    // Filtro de fornecedor
     if (filters.supplierId) {
-      filteredStockEntries = filteredStockEntries.filter(e => e.supplierId.toString() === filters.supplierId);
+      filteredStockEntries = filteredStockEntries.filter(e => e.supplierId?.toString() === filters.supplierId);
     }
 
-    // School filter
+    // Filtro de escola
     if (filters.school) {
       filteredRequests = filteredRequests.filter(r => r.requester?.school === filters.school);
     }
 
-    // Requester filter
+    // Filtro de solicitante
     if (filters.requesterId) {
-      filteredRequests = filteredRequests.filter(r => r.requesterId.toString() === filters.requesterId);
+      filteredRequests = filteredRequests.filter(r => r.requesterId?.toString() === filters.requesterId);
     }
 
-    // Dispatcher filter
+    // Filtro de despachante
     if (filters.dispatcherId) {
       filteredRequests = filteredRequests.filter(r => r.dispatchedBy?.toString() === filters.dispatcherId);
     }
 
-    // Material filter
+    // Filtro de material
     if (filters.materialId) {
       filteredRequests = filteredRequests.filter(r => 
-        r.items?.some(item => item.materialId.toString() === filters.materialId)
+        r.items?.some((item: any) => item.material?.id?.toString() === filters.materialId)
       );
-      filteredStockEntries = filteredStockEntries.filter(e => e.materialId.toString() === filters.materialId);
+      filteredStockEntries = filteredStockEntries.filter(e => e.materialId?.toString() === filters.materialId);
       filteredMaterials = filteredMaterials.filter(m => m.id.toString() === filters.materialId);
     }
 
-    // Status filter
+    // Filtro de status
     if (filters.status) {
       filteredRequests = filteredRequests.filter(r => r.status === filters.status);
     }
@@ -273,7 +303,7 @@ const Reports = () => {
       
       doc.text(reportTitle, pageWidth / 2, 30, { align: 'center' });
       
-      // Filters info
+      // Informações dos filtros
       doc.setFontSize(10);
       let yPos = 45;
       
@@ -302,7 +332,7 @@ const Reports = () => {
       
       yPos += 10;
       
-      // Generate table based on report type
+      // Gerar tabela baseada no tipo de relatório
       if (filters.reportType === 'requests') {
         generateRequestsTable(doc, yPos);
       } else if (filters.reportType === 'stock-entries') {
@@ -311,7 +341,7 @@ const Reports = () => {
         generateMaterialsTable(doc, yPos);
       }
       
-      // Footer
+      // Rodapé
       const pageCount = doc.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -320,7 +350,7 @@ const Reports = () => {
         doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 20, doc.internal.pageSize.height - 10);
       }
       
-      // Save PDF
+      // Salvar PDF
       const fileName = `relatorio_${filters.reportType}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
       doc.save(fileName);
       
@@ -333,27 +363,63 @@ const Reports = () => {
   };
 
   const generateRequestsTable = (doc: any, startY: number) => {
-    const tableData = filteredData.requests.map(request => [
-      `#${request.id.toString().padStart(4, '0')}`,
-      request.requester?.name || 'N/A',
-      request.requester?.school || 'N/A',
-      request.status.charAt(0).toUpperCase() + request.status.slice(1),
-      request.priority.charAt(0).toUpperCase() + request.priority.slice(1),
-      request.createdAt
-        ? format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: ptBR })
-        : 'Data inválida',
-      request.itemsCount?.toString() || '0',
-      request.approver?.name || 'N/A',
-      request.dispatcher?.name || 'N/A'
-    ]);
-    console.log(tableData);
+    const tableData: any[] = [];
+    
+    filteredData.requests.forEach(request => {
+      // Se tiver items, cria uma linha para cada item
+      if (request.items && request.items.length > 0) {
+        request.items.forEach((item: any, index: number) => {
+          tableData.push([
+            // Primeira linha do request mostra o solicitante, nas linhas seguintes fica vazio
+            index === 0 ? request.requester?.name || 'N/A' : '',
+            index === 0 ? request.requester?.school || 'N/A' : '',
+            item.material?.name || 'Material não encontrado',
+            `${item.requested_quantity || 0} ${item.material?.unit || ''}`,
+            request.status.charAt(0).toUpperCase() + request.status.slice(1),
+            request.priority.charAt(0).toUpperCase() + request.priority.slice(1),
+            request.createdAt
+              ? format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: ptBR })
+              : 'Data inválida',
+            request.approver?.name || 'N/A',
+            request.dispatcher?.name || 'N/A'
+          ]);
+        });
+      } else {
+        // Se não tiver items, mostra uma linha com "Sem itens"
+        tableData.push([
+          request.requester?.name || 'N/A',
+          request.requester?.school || 'N/A',
+          'Sem itens',
+          '-',
+          request.status.charAt(0).toUpperCase() + request.status.slice(1),
+          request.priority.charAt(0).toUpperCase() + request.priority.slice(1),
+          request.createdAt
+            ? format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: ptBR })
+            : 'Data inválida',
+          request.approver?.name || 'N/A',
+          request.dispatcher?.name || 'N/A'
+        ]);
+      }
+    });
+
     (doc as any).autoTable({
       startY: startY,
-      head: [['ID', 'Solicitante', 'Escola', 'Status', 'Prioridade', 'Data', 'Itens', 'Aprovador', 'Despachante']],
+      head: [['Solicitante', 'Escola', 'Material', 'Quantidade', 'Status', 'Prioridade', 'Data', 'Aprovador', 'Despachante']],
       body: tableData,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [248, 250, 252] }
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 18 },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 20 },
+        8: { cellWidth: 20 },
+      }
     });
   };
 
@@ -362,7 +428,7 @@ const Reports = () => {
       entry.material?.name || 'N/A',
       entry.supplier?.name || 'N/A',
       `${entry.quantity.toLocaleString()} ${entry.material?.unit || ''}`,
-      entry.unitPrice || 'N/A',
+      entry.unitPrice ? `R$ ${Number(entry.unitPrice).toFixed(2)}` : 'N/A',
       entry.batch || 'N/A',
       entry.createdAt
         ? format(new Date(entry.createdAt), 'dd/MM/yyyy', { locale: ptBR })
@@ -385,13 +451,13 @@ const Reports = () => {
       material.name,
       material.category,
       material.unit,
-      material.currentStock,
-      material.minStock,
+      material.currentStock?.toLocaleString() || '0',
+      material.minStock?.toLocaleString() || '0',
       Number(material.currentStock) <= Number(material.minStock) ? 'Baixo' : 'OK',
       material.updatedAt
         ? format(new Date(material.updatedAt), 'dd/MM/yyyy', { locale: ptBR })
         : 'Data inválida'
-          ]);
+    ]);
 
     (doc as any).autoTable({
       startY: startY,
@@ -442,7 +508,7 @@ const Reports = () => {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium text-gray-900 flex items-center">
@@ -459,7 +525,7 @@ const Reports = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {/* Report Type */}
+          {/* Tipo de Relatório */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <FileText className="h-4 w-4 inline mr-1" />
@@ -476,7 +542,7 @@ const Reports = () => {
             </select>
           </div>
 
-          {/* Date Range */}
+          {/* Intervalo de Datas */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Calendar className="h-4 w-4 inline mr-1" />
@@ -503,7 +569,7 @@ const Reports = () => {
             />
           </div>
 
-          {/* Material Filter */}
+          {/* Filtro de Material */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Package className="h-4 w-4 inline mr-1" />
@@ -523,7 +589,7 @@ const Reports = () => {
             </select>
           </div>
 
-          {/* Supplier Filter - Only for stock entries */}
+          {/* Filtro de Fornecedor - Apenas para entradas */}
           {filters.reportType === 'stock-entries' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -545,7 +611,7 @@ const Reports = () => {
             </div>
           )}
 
-          {/* School Filter - Only for requests */}
+          {/* Filtro de Escola - Apenas para solicitações */}
           {filters.reportType === 'requests' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -567,7 +633,7 @@ const Reports = () => {
             </div>
           )}
 
-          {/* Requester Filter - Only for requests */}
+          {/* Filtro de Solicitante - Apenas para solicitações */}
           {filters.reportType === 'requests' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -589,7 +655,7 @@ const Reports = () => {
             </div>
           )}
 
-          {/* Dispatcher Filter - Only for requests */}
+          {/* Filtro de Despachante - Apenas para solicitações */}
           {filters.reportType === 'requests' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -611,7 +677,7 @@ const Reports = () => {
             </div>
           )}
 
-          {/* Status Filter - Only for requests */}
+          {/* Filtro de Status - Apenas para solicitações */}
           {filters.reportType === 'requests' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -634,9 +700,9 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Results Summary */}
+      {/* Resumo dos Resultados */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-medium text-gray-900">Resultados</h3>
             <p className="text-gray-600">
@@ -653,6 +719,144 @@ const Reports = () => {
             </div>
           )}
         </div>
+
+        {/* Prévia dos dados para requests */}
+        {filters.reportType === 'requests' && filteredData.requests.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Solicitante</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Escola</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Qtd</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredData.requests.slice(0, 5).map(request => 
+                  request.items && request.items.length > 0 ? (
+                    request.items.map((item: any, idx: number) => (
+                      <tr key={`${request.id}-${idx}`}>
+                        <td className="px-3 py-2 text-sm text-gray-900">{idx === 0 ? request.requester?.name : ''}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{idx === 0 ? request.requester?.school : ''}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.material?.name || 'Material não encontrado'}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.requested_quantity || 0} {item.material?.unit || ''}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            request.status === 'aprovado' ? 'bg-green-100 text-green-800' :
+                            request.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' :
+                            request.status === 'rejeitado' ? 'bg-red-100 text-red-800' :
+                            request.status === 'despachado' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {request.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr key={request.id}>
+                      <td className="px-3 py-2 text-sm text-gray-900">{request.requester?.name}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900">{request.requester?.school}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900" colSpan={2}>Sem itens</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          request.status === 'aprovado' ? 'bg-green-100 text-green-800' :
+                          request.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' :
+                          request.status === 'rejeitado' ? 'bg-red-100 text-red-800' :
+                          request.status === 'despachado' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {request.status}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+            {filteredData.requests.length > 5 && (
+              <p className="text-sm text-gray-500 mt-2">
+                Mostrando 5 de {filteredData.requests.length} solicitações
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Prévia dos dados para entradas de estoque */}
+        {filters.reportType === 'stock-entries' && filteredData.stockEntries.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fornecedor</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredData.stockEntries.slice(0, 10).map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="px-3 py-2 text-sm text-gray-900">{entry.material?.name || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">{entry.supplier?.name || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">{entry.quantity} {entry.material?.unit || ''}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {entry.createdAt ? format(new Date(entry.createdAt), 'dd/MM/yyyy') : 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredData.stockEntries.length > 10 && (
+              <p className="text-sm text-gray-500 mt-2">
+                Mostrando 10 de {filteredData.stockEntries.length} entradas
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Prévia dos dados para materiais */}
+        {filters.reportType === 'materials' && filteredData.materials.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estoque</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mínimo</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredData.materials.slice(0, 10).map((material) => (
+                  <tr key={material.id}>
+                    <td className="px-3 py-2 text-sm text-gray-900">{material.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">{material.category}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">{material.currentStock} {material.unit}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900">{material.minStock} {material.unit}</td>
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        Number(material.currentStock) <= Number(material.minStock) 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {Number(material.currentStock) <= Number(material.minStock) ? 'Baixo' : 'OK'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredData.materials.length > 10 && (
+              <p className="text-sm text-gray-500 mt-2">
+                Mostrando 10 de {filteredData.materials.length} materiais
+              </p>
+            )}
+          </div>
+        )}
 
         {getDataCount() === 0 && (
           <div className="mt-6 text-center py-12">
