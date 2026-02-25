@@ -50,5 +50,18 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0"
-  }
+  },
+  "description": "Sistema completo para gerenciamento de estoque de materiais escolares, desenvolvido com React, TypeScript, Tailwind CSS e Supabase.",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csprimee1/SistemaEstoque.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/csprimee1/SistemaEstoque/issues"
+  },
+  "homepage": "https://github.com/csprimee1/SistemaEstoque#readme",
+  "keywords": []
 }

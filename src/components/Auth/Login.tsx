@@ -18,6 +18,7 @@ const Login = () => {
     { email: 'carlos@educacao.gov.br', role: 'Despachante', password: 'carlos123' },
     { email: 'maria@escola1.edu.br', role: 'Solicitante - Escola João da Silva', password: 'maria123' },
     { email: 'joao@escola2.edu.br', role: 'Solicitante - Escola Maria das Dores', password: 'joao123' },
+    { email: 'gerinaldo@seme.com', role: 'Solicitante - Escola Maria das Dores', password: 'Gerinaldo26' },
   ];
 
   if (loading) {

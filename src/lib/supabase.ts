@@ -78,7 +78,7 @@ export const validateSession = async () => {
   }
 };
 
-// Função para fazer login
+// Função para fazer login - AGORA COM COMPARAÇÃO DIRETA DE SENHA
 export const loginWithCredentials = async (email: string, password: string) => {
   try {
     // Busca usuário por email
@@ -95,18 +95,8 @@ export const loginWithCredentials = async (email: string, password: string) => {
 
     const user = users[0];
 
-    // Para demo, vamos aceitar senhas simples (em produção, use bcrypt)
-    const validPasswords: { [key: string]: string } = {
-      'admin@educacao.gov.br': 'admin123',
-      'carlos@educacao.gov.br': 'carlos123',
-      'maria@escola1.edu.br': 'maria123',
-      'joao@escola2.edu.br': 'joao123',
-      'ana@escola3.edu.br': 'ana123',
-      'pedro@escola4.edu.br': 'pedro123',
-      'lucia@escola5.edu.br': 'lucia123'
-    };
-
-    if (validPasswords[email] !== password) {
+    // COMPARAÇÃO DIRETA DE SENHA (sem bcrypt)
+    if (user.password !== password) {
       return { success: false, error: 'Senha incorreta' };
     }
 
@@ -176,11 +166,12 @@ export const getCurrentUserProfile = async () => {
   return await validateSession();
 };
 
-// Função para criar perfil de usuário (compatibilidade)
+// Função para criar perfil de usuário (compatibilidade) - AGORA COM SENHA SIMPLES
 export const createUserProfile = async (authUser: any, userData: {
   name: string;
   role: 'solicitante' | 'despachante' | 'administrador';
   school?: string;
+  password: string;
 }) => {
   const { data, error } = await supabase
     .from('users')
@@ -189,7 +180,8 @@ export const createUserProfile = async (authUser: any, userData: {
       email: authUser.email,
       role: userData.role,
       school: userData.school,
-      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' // senha padrão
+      password: userData.password, // Senha em texto puro (apenas para demonstração!)
+      is_active: true
     })
     .select()
     .single();
