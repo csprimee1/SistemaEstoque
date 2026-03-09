@@ -371,52 +371,61 @@ export const stockEntriesApi = {
 // SOLICITAÇÕES
 export const requestsApi = {
   getAll: async (): Promise<any[]> => {
-  const { data, error } = await supabase
-    .from('requests')
-    .select(`
-      id,
-      status,
-      priority,
-      created_at,
-      requester:requester_id (id, name, school),
-      approver:approved_by (name),
-      dispatcher:dispatched_by (name),
-      items:request_items (
-        requested_quantity,
-        dispatched_quantity
-      )
-    `)
-    .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('requests')
+      .select(`
+        id,
+        status,
+        priority,
+        created_at,
+        requester:requester_id (id, name, school),
+        approver:approved_by (name),
+        dispatcher:dispatched_by (name),
+        items:request_items (
+          id,
+          requested_quantity,
+          dispatched_quantity,
+          approved_quantity,
+          material_id,
+          material:materials (
+            id,
+            name,
+            unit,
+            category
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) throw error;
+    if (error) throw error;
 
-  return (data || []).map((request) => {
-    // Calcular totais dos itens
-    const itemsCount = request.items?.length || 0;
-    const totalRequested = request.items?.reduce(
-      (sum: number, item: any) => sum + (item.requested_quantity || 0), 0
-    ) || 0;
-    const totalDispatched = request.items?.reduce(
-      (sum: number, item: any) => sum + (item.dispatched_quantity || 0), 0
-    ) || 0;
+    return (data || []).map((request) => {
+      // Calcular totais dos itens
+      const itemsCount = request.items?.length || 0;
+      const totalRequested = request.items?.reduce(
+        (sum: number, item: any) => sum + (item.requested_quantity || 0), 0
+      ) || 0;
+      const totalDispatched = request.items?.reduce(
+        (sum: number, item: any) => sum + (item.dispatched_quantity || 0), 0
+      ) || 0;
 
-    return {
-      id: request.id,
-      status: request.status,
-      priority: request.priority,
-      created_at: request.created_at,
-      requester_name: request.requester?.name,
-      requesterId: request.requester?.id,
-      school: request.requester?.school,
-      approver_name: request.approver?.name,
-      dispatcher_name: request.dispatcher?.name,
-      itemsCount,
-      totalRequested,
-      totalDispatched,
-      items: request.items || []
-    };
-  });
-},
+      return {
+        id: request.id,
+        status: request.status,
+        priority: request.priority,
+        created_at: request.created_at,
+        requester_name: request.requester?.name,
+        requesterId: request.requester?.id,
+        school: request.requester?.school,
+        approver_name: request.approver?.name,
+        dispatcher_name: request.dispatcher?.name,
+        itemsCount,
+        totalRequested,
+        totalDispatched,
+        items: request.items || [] // Agora os items têm material_id e material
+      };
+    });
+  },
 
   getById: async (id: string): Promise<any> => {
     const { data: request, error: requestError } = await supabase

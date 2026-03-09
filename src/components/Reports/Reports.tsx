@@ -79,89 +79,219 @@ const Reports = () => {
     applyFilters();
   }, [filters, data]);
 
+  // Função auxiliar para enriquecer itens com dados completos de materiais
+  const enrichItemsWithMaterials = (items: any[], materialsList: Material[]) => {
+    if (!items || !Array.isArray(items)) return [];
+    
+    return items.map((item: any, index: number) => {
+      // Log detalhado da estrutura do item
+      console.log(`Item ${index} estrutura completa:`, JSON.stringify(item, null, 2));
+      
+      // Verificar todas as propriedades do item
+      console.log(`Item ${index} propriedades:`, Object.keys(item));
+      
+      // Caso 1: Verificar se tem material diretamente
+      if (item.material) {
+        console.log(`Item ${index} tem material:`, item.material);
+        if (item.material.name) {
+          return {
+            ...item,
+            material: {
+              id: item.material.id,
+              name: item.material.name,
+              unit: item.material.unit || '',
+              category: item.material.category || ''
+            }
+          };
+        }
+      }
+      
+      // Caso 2: Verificar se tem materials (plural)
+      if (item.materials) {
+        console.log(`Item ${index} tem materials:`, item.materials);
+        if (item.materials.name) {
+          return {
+            ...item,
+            material: {
+              id: item.materials.id,
+              name: item.materials.name,
+              unit: item.materials.unit || '',
+              category: item.materials.category || ''
+            }
+          };
+        }
+      }
+      
+      // Caso 3: Verificar se tem material_id
+      if (item.material_id) {
+        console.log(`Item ${index} tem material_id:`, item.material_id);
+        const material = materialsList.find(m => m.id === item.material_id);
+        if (material) {
+          console.log(`Item ${index} material encontrado na lista:`, material);
+          return {
+            ...item,
+            material: {
+              id: material.id,
+              name: material.name,
+              unit: material.unit || '',
+              category: material.category || ''
+            }
+          };
+        } else {
+          console.log(`Item ${index} material_id ${item.material_id} não encontrado na lista de materiais`);
+        }
+      }
+      
+      // Caso 4: Verificar se tem materialId (camelCase)
+      if (item.materialId) {
+        console.log(`Item ${index} tem materialId:`, item.materialId);
+        const material = materialsList.find(m => m.id === item.materialId);
+        if (material) {
+          console.log(`Item ${index} material encontrado na lista:`, material);
+          return {
+            ...item,
+            material: {
+              id: material.id,
+              name: material.name,
+              unit: material.unit || '',
+              category: material.category || ''
+            }
+          };
+        }
+      }
+      
+      // Caso 5: Verificar se o próprio item é o material (estrutura achatada)
+      if (item.name && item.id) {
+        console.log(`Item ${index} parece ser o próprio material:`, item);
+        return {
+          ...item,
+          material: {
+            id: item.id,
+            name: item.name,
+            unit: item.unit || '',
+            category: item.category || ''
+          }
+        };
+      }
+      
+      // Caso 6: Não encontrou nenhuma referência de material
+      console.warn('Material não encontrado para o item:', item);
+      console.warn('ID do item:', item.id);
+      console.warn('Material ID presente:', item.material_id || item.materialId || 'nenhum');
+      
+      return {
+        ...item,
+        material: {
+          id: item.material_id || item.materialId || 'unknown',
+          name: 'Material não encontrado',
+          unit: '',
+          category: ''
+        }
+      };
+    });
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [requestsResponse, stockEntriesResponse, materialsResponse, suppliersResponse, usersResponse] = await Promise.all([
+      // Primeiro, buscar materiais para usar no enriquecimento
+      const materialsResponse = await materialsApi.getAll();
+      setMaterials(materialsResponse);
+
+      const [requestsResponse, stockEntriesResponse, suppliersResponse, usersResponse] = await Promise.all([
         requestsApi.getAll(),
         stockEntriesApi.getAll(),
-        materialsApi.getAll(),
         suppliersApi.getAll(),
         usersApi.getAll()
       ]);
 
       console.log('Requests response:', requestsResponse);
-      console.log('Primeiro request items:', requestsResponse[0]?.items);
+      console.log('Materiais carregados:', materialsResponse);
+      
+      // Log detalhado do primeiro item da requisição
+      if (requestsResponse[0]?.items?.[0]) {
+        console.log('Primeiro item da requisição - estrutura completa:', 
+          JSON.stringify(requestsResponse[0].items[0], null, 2));
+      }
 
-      // Mapear requests com items detalhados - CORRIGIDO
+      // Mapear requests com items enriquecidos
       const mappedRequests = requestsResponse.map((r: any) => {
-        // Processar os items para garantir que o material está sendo acessado corretamente
-        const processedItems = r.items ? r.items.map((item: any) => ({
-          id: item.id,
-          requested_quantity: item.requested_quantity,
-          dispatched_quantity: item.dispatched_quantity,
-          approved_quantity: item.approved_quantity,
-          material: item.material ? {
-            id: item.material.id,
-            name: item.material.name,
-            unit: item.material.unit,
-            category: item.material.category
-          } : {
-            name: 'Material não encontrado',
-            unit: ''
-          }
-        })) : [];
+        // Processar os items com a função auxiliar
+        console.log('Items ORIGINAIS da API (sem processamento):', JSON.stringify(r.items, null, 2));
+        const processedItems = r.items ? enrichItemsWithMaterials(r.items, materialsResponse) : [];
+
+        // Log para debug do primeiro request
+        if (r.id === requestsResponse[0]?.id) {
+          console.log('Processando request:', r.id);
+          console.log('Items originais:', r.items);
+          console.log('Items processados:', processedItems);
+        }
 
         return {
           id: r.id,
-          status: r.status,
-          priority: r.priority,
-          notes: r.notes,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          itemsCount: processedItems.length,
-          totalRequested: r.totalRequested || r.total_requested || 0,
-          requesterId: r.requesterId || r.requester_id || null,
-          dispatchedBy: r.dispatchedBy || r.dispatched_by || null,
+          status: r.status || 'pendente',
+          priority: r.priority || 'normal',
+          notes: r.notes || '',
+          createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+          updatedAt: r.updated_at || r.updatedAt,
+          requesterId: r.requester_id || r.requesterId,
+          dispatchedBy: r.dispatched_by || r.dispatchedBy,
+          approvedBy: r.approved_by || r.approvedBy,
           approver: { 
-            id: r.approver_id,
-            name: r.approver_name || r.approver?.name || 'N/A' 
+            id: r.approver_id || r.approved_by,
+            name: r.approver_name || r.approver?.name || 
+                  r.approver?.name || 'N/A' 
           },
           dispatcher: { 
-            id: r.dispatcher_id,
-            name: r.dispatcher_name || r.dispatcher?.name || 'N/A' 
+            id: r.dispatcher_id || r.dispatched_by,
+            name: r.dispatcher_name || r.dispatcher?.name || 
+                  r.dispatcher?.name || 'N/A' 
           },
           requester: {
             id: r.requester_id || r.requesterId,
-            name: r.requester_name || r.requester?.name || 'N/A',
+            name: r.requester_name || r.requester?.name || 
+                  r.requester?.name || 'N/A',
             school: r.school || r.requester?.school || ''
           },
-          items: processedItems // Itens processados com material correto
+          items: processedItems,
+          itemsCount: processedItems.length,
+          totalRequested: processedItems.reduce(
+            (sum: number, item: any) => sum + (item.requested_quantity || 0), 0
+          ),
+          totalDispatched: processedItems.reduce(
+            (sum: number, item: any) => sum + (item.dispatched_quantity || 0), 0
+          )
         };
       });
-      console.log('Requests mapeados:', mappedRequests);
+
       console.log('Primeiro request mapeado:', mappedRequests[0]);
-      console.log('Items do primeiro request mapeado:', mappedRequests[0]?.items);
+      console.log('Items do primeiro request:', mappedRequests[0]?.items);
 
       const mappedStockEntries = stockEntriesResponse.map((entry: any) => ({
         id: entry.id,
-        materialId: entry.materialId,
-        supplierId: entry.supplierId,
-        quantity: entry.quantity,
-        unitPrice: entry.unitPrice,
-        batch: entry.batch,
-        expiryDate: entry.expiryDate,
-        notes: entry.notes,
-        createdAt: entry.createdAt,
-        createdBy: entry.createdBy,
-        user: { name: entry.createdUser || 'N/A' },
-        material: {
-          name: entry.material?.name || 'N/A',
-          unit: entry.material?.unit || ''
+        materialId: entry.material_id || entry.materialId,
+        supplierId: entry.supplier_id || entry.supplierId,
+        quantity: entry.quantity || 0,
+        unitPrice: entry.unit_price || entry.unitPrice || 0,
+        batch: entry.batch || '',
+        expiryDate: entry.expiry_date || entry.expiryDate,
+        notes: entry.notes || '',
+        createdAt: entry.created_at || entry.createdAt,
+        createdBy: entry.created_by || entry.createdBy,
+        user: { 
+          name: entry.user?.name || entry.createdUser || 'N/A' 
         },
-        supplier: {
-          name: entry.supplier?.name || 'N/A'
-        }
+        material: entry.material ? {
+          id: entry.material.id,
+          name: entry.material.name,
+          unit: entry.material.unit || ''
+        } : materialsResponse.find(m => m.id === (entry.material_id || entry.materialId)) || {
+          name: 'N/A',
+          unit: ''
+        },
+        supplier: entry.supplier ? {
+          name: entry.supplier.name
+        } : { name: 'N/A' }
       }));
 
       const mappedMaterials = materialsResponse.map((m: any) => ({
@@ -169,10 +299,10 @@ const Reports = () => {
         name: m.name,
         category: m.category,
         unit: m.unit,
-        currentStock: m.currentStock || 0,
-        minStock: m.minStock || 0,
-        description: m.description,
-        updatedAt: m.updatedAt
+        currentStock: m.current_stock || m.currentStock || 0,
+        minStock: m.min_stock || m.minStock || 0,
+        description: m.description || '',
+        updatedAt: m.updated_at || m.updatedAt
       }));
 
       setData({
@@ -182,7 +312,6 @@ const Reports = () => {
       });
 
       setSuppliers(suppliersResponse);
-      setMaterials(materialsResponse);
       setUsers(usersResponse);
 
       // Extrair escolas únicas
@@ -207,6 +336,7 @@ const Reports = () => {
     // Filtros de data
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
+      startDate.setHours(0, 0, 0, 0);
       filteredRequests = filteredRequests.filter(r => new Date(r.createdAt) >= startDate);
       filteredStockEntries = filteredStockEntries.filter(e => new Date(e.createdAt) >= startDate);
     }
@@ -348,6 +478,7 @@ const Reports = () => {
         doc.setFontSize(8);
         doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, doc.internal.pageSize.height - 10);
         doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 20, doc.internal.pageSize.height - 10);
+        doc.text(`Usuário: ${user?.name || 'N/A'}`, 20, doc.internal.pageSize.height - 5);
       }
       
       // Salvar PDF
@@ -366,17 +497,15 @@ const Reports = () => {
     const tableData: any[] = [];
     
     filteredData.requests.forEach(request => {
-      // Se tiver items, cria uma linha para cada item
       if (request.items && request.items.length > 0) {
         request.items.forEach((item: any, index: number) => {
           tableData.push([
-            // Primeira linha do request mostra o solicitante, nas linhas seguintes fica vazio
             index === 0 ? request.requester?.name || 'N/A' : '',
             index === 0 ? request.requester?.school || 'N/A' : '',
             item.material?.name || 'Material não encontrado',
             `${item.requested_quantity || 0} ${item.material?.unit || ''}`,
-            request.status.charAt(0).toUpperCase() + request.status.slice(1),
-            request.priority.charAt(0).toUpperCase() + request.priority.slice(1),
+            request.status ? (request.status.charAt(0).toUpperCase() + request.status.slice(1)) : 'N/A',
+            request.priority ? (request.priority.charAt(0).toUpperCase() + request.priority.slice(1)) : 'N/A',
             request.createdAt
               ? format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: ptBR })
               : 'Data inválida',
@@ -385,14 +514,13 @@ const Reports = () => {
           ]);
         });
       } else {
-        // Se não tiver items, mostra uma linha com "Sem itens"
         tableData.push([
           request.requester?.name || 'N/A',
           request.requester?.school || 'N/A',
           'Sem itens',
           '-',
-          request.status.charAt(0).toUpperCase() + request.status.slice(1),
-          request.priority.charAt(0).toUpperCase() + request.priority.slice(1),
+          request.status ? (request.status.charAt(0).toUpperCase() + request.status.slice(1)) : 'N/A',
+          request.priority ? (request.priority.charAt(0).toUpperCase() + request.priority.slice(1)) : 'N/A',
           request.createdAt
             ? format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: ptBR })
             : 'Data inválida',
