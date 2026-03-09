@@ -163,7 +163,7 @@ export const materialsApi = {
 
     return (data || []).map(item => ({
       id: item.id,
-      name: material.name,
+      name: item.name,
       currentStock: item.current_stock || 0
     }));
   }
@@ -504,39 +504,47 @@ export const requestsApi = {
   },
 
   approve: async (
-    id: string, 
-    approvedBy: string, 
-    items: Array<{
-      item_id: string;
-      quantity: number;
-    }>
-  ): Promise<any> => {
-    // Update request status
-    const { error: requestError } = await supabase
-      .from('requests')
+  id: string, 
+  approvedBy: string, 
+  items: Array<{
+    item_id: string;
+    quantity: number;
+  }>
+): Promise<any> => {
+  console.log('========== APROVAÇÃO ==========');
+  console.log('Aprovando requisição:', id);
+  console.log('Itens a aprovar:', items);
+
+  // Update request status
+  const { error: requestError } = await supabase
+    .from('requests')
+    .update({
+      status: 'aprovado',
+      approved_by: approvedBy,
+      approved_at: new Date().toISOString()
+    })
+    .eq('id', id);
+
+  if (requestError) throw requestError;
+
+  // Update approved quantities AND dispatched quantities for each item
+  for (const item of items) {
+    console.log(`Atualizando item ${item.item_id} com quantidade ${item.quantity}`);
+    
+    const { error: itemError } = await supabase
+      .from('request_items')
       .update({
-        status: 'aprovado',
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString()
+        approved_quantity: item.quantity,
+        //dispatched_quantity: item.quantity  // <<< IMPORTANTE: já define a quantidade para despacho
       })
-      .eq('id', id);
+      .eq('id', item.item_id);
 
-    if (requestError) throw requestError;
+    if (itemError) throw itemError;
+  }
 
-    // Update approved quantities for each item
-    for (const item of items) {
-      const { error: itemError } = await supabase
-        .from('request_items')
-        .update({
-          approved_quantity: item.quantity
-        })
-        .eq('id', item.item_id);
-
-      if (itemError) throw itemError;
-    }
-
-    return { success: true };
-  },
+  console.log('✅ Requisição aprovada com sucesso');
+  return { success: true };
+},
 
   reject: async (id: string, reason: string): Promise<any> => {
     const currentUser = await validateSession();
@@ -568,8 +576,54 @@ export const requestsApi = {
     return data;
   },
 
+  // MÉTODO DISPATCH CORRIGIDO - AGORA SUBTRAI DO ESTOQUE
   dispatch: async (id: string, dispatchedBy: string): Promise<any> => {
-    // Update request status
+  console.log('========== INÍCIO DO DESPACHO ==========');
+  console.log('ID da requisição:', id);
+  
+  try {
+    // 1. Buscar itens da requisição
+    const { data: requestItems, error: itemsError } = await supabase
+      .from('request_items')
+      .select(`
+        id,
+        material_id,
+        approved_quantity,
+        materials:material_id (
+          name
+        )
+      `)
+      .eq('request_id', id);
+
+    if (itemsError) throw itemsError;
+
+    console.log('Itens encontrados:', requestItems);
+
+    // 2. Para cada item, atualizar SOMENTE o dispatched_quantity
+    //    (O TRIGGER fará a subtração do estoque automaticamente!)
+    for (const item of requestItems) {
+      const quantityToDispatch = item.approved_quantity;
+      
+      console.log(`\nProcessando item:`);
+      console.log(`Quantidade a despachar: ${quantityToDispatch}`);
+
+      if (quantityToDispatch > 0) {
+        // ✅ SÓ ISSO! O trigger faz o resto!
+        const { error: itemError } = await supabase
+          .from('request_items')
+          .update({ 
+            dispatched_quantity: quantityToDispatch
+          })
+          .eq('id', item.id);
+
+        if (itemError) throw itemError;
+
+        console.log(`✅ dispatched_quantity atualizado para ${quantityToDispatch}`);
+        console.log(`⚠️  O trigger vai subtrair do estoque automaticamente`);
+      }
+    }
+
+    // 3. Atualizar status da requisição
     const { error: requestError } = await supabase
       .from('requests')
       .update({
@@ -581,12 +635,20 @@ export const requestsApi = {
 
     if (requestError) throw requestError;
 
-    const { error } = await supabase.rpc('dispatch_request_items', { req_id: id });
-    if (error) throw error;
-
+    console.log('========== DESPACHO CONCLUÍDO ==========');
+    console.log('✅ dispatched_quantity atualizado');
+    console.log('✅ Status atualizado');
+    console.log('✅ Estoque será subtraído pelo trigger');
+    
     return { success: true };
-      }
-    };
+    
+  } catch (error) {
+    console.error('========== ERRO NO DESPACHO ==========');
+    console.error(error);
+    throw error;
+  }
+}
+};
 
 // Clean up expired sessions periodically
 export const cleanupSessions = async () => {
